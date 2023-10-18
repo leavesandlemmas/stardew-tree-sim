@@ -1,7 +1,9 @@
 # stardew-tree-sim
-A simulation and mathematical of tree dynamics, based on stardew valley.
+This repository is a project that explores a simulation and mathematical analysis of a simplified model of tree dynamics, based on how trees grow and spread in the video game [Stardew Valley](https://www.stardewvalley.net/). 
 
+## Overview of a Stardew Valley Forest
 
-$$
-t^2/2 \int t dt
-$$
+![Forest on stardew valley farm]("./images/20231018082043_1.jpg")
+
+## How do trees
+
