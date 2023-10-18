@@ -3,7 +3,7 @@ This repository is a project that explores a simulation and mathematical analysi
 
 ## Overview of a Stardew Valley Forest
 
-![Forest on stardew valley farm]("./images/20231018082043_1.jpg")
+![Forest on stardew valley farm](./images/20231018082043_1.jpg)
 
 ## How do trees
 
