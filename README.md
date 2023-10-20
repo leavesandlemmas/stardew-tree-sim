@@ -62,6 +62,49 @@ In many physical systems, we wish represent to how some quantity varies in space
 
 Although these mathematical representations of the same physical systems are very different, they often serve as good approximations for one another. Sometimes by converting from one form to another, we get new insight. However, this has to be done with care, because not all cellular automata can be represented as a partial differential equation, so there might not be any conversion. But usually interesting physical systems have symmetries or other properties that make this conversion possible. For instance, cellular automata usually have translational symmetries and rotational symmetries with their grid. At large scales, these symmetries approximate the continuous symmetries of continuous space. The local transition rules of cellular automata correspond to the local rules of partial differential equations. We can also use different grids, so hexagonal grids or triangular grids are also possible for cellular automata, but more complicated to program. It turns out that the emergent properties of interesting physical systems often do not depend strongly such choices.
 
+
 ## How do trees grow? 
 
+To start thinking about transition rules, trees have two major processes here. They grow and they reproduce. In Stardew Valley, these processes occur over night while the player sleeps. Thus our transition rule is discrete time. Of these processes, growth is simpler. Note there are five growth stages. According to the [Stardew Valley wiki on trees](https://stardewvalleywiki.com/Trees#Growth_Cycle), the oak, maple, and pine trees have a 20% chance to grow per night increase in growth state, except for the transition from growth state $s=4$ to growth stage $s=5$. The transition from $4\to 5$ cannot occur for a given cell, if there is a stage 5 tree in the Moore neighborhood (the 8 currounding cells) of the cell. 
+
+The wiki says this last transition takes "twice as a long" (which should mean a 10%), however, investigating the [decompiled game code](https://github.com/veywrn/StardewValley/tree/master), the method which updates tree, the method [Tree:dayUpdate](https://github.com/veywrn/StardewValley/blob/master/StardewValley/TerrainFeatures/Tree.cs) appears to show a 20% for the last stage. We won't worry too much about that, because ultimately we want to calculate how much the overall behavior depends on such choices. Note that we will only consider the case of unfertilized trees in Stardew Valley. Because growth is random, we have a stochastic cellular automaton, with a stochastic transition rule. This makes the growth of an individual tree into a [Markov chain](https://en.wikipedia.org/wiki/Markov_chain). We can represent this diagrammatically as:
+
+
 ![markov chain for growth](./images/markov_chain_for_growth.png)
+
+
+This also makes the entire grid into a Markov chain. There exists a matrix which specifics the transition probability from any possible configuration of the grid to any other possible configuration. But the number of configurations is so large, even for small grids and this matrix is stupendous in size. For one tree species, 48 by 64 grid has on $6 ^ {48 \times 64} $ possible configurations which is on the order of $10^{2390}$. For a quick size comparison, the [age of the universe](https://en.wikipedia.org/wiki/Hubble%27s_law#Hubble_time) is estimated at only $ 4.55 \times 10 ^{17]$ *seconds* and the number of orderings of a deck of 52 playing cards is only $52! \approx 10^{68}$.   Note however that for most pairs of grids, the transition probability is zero. 
+
+For the most part, this transition rule is independent with no spatial interactions at except for the last stage. If we ignore this part, we get a transition matrix that looks like this:
+![A transition matrix](./images/transition_matrix_growth_stages.PNG)
+
+Here each entry of the matrix gives a transition probability  $A_{ij} = \Pr ( j \to i) $. If we know the initial state, we can just look at the corresponding column to get the transition probabilities. Note that the diagonals are the probability that no change occurs. Note also that the final stage is an *absorbing state*. Once a tree is mature, it stays there in this Markov chain (other processes will change that later). Using matrix powers $A^n $, we can calculate the probability of transition from a given state $j$ to any other state $i$ after $n$ transitions (or $n$ nights in game). This means that the entry $(A^n)_{51}$ is the cumulative density function $F(n) $ for the growing time, the number of days (or nights) until fully grown. The CDF $F(n)$ is the probability that after $n$ days, a tree has fully grown (neglecting any spatial effects). The probability that the growing time is exactly $k$ days is $f(k) = F(k) - F(k-1)$ and from this probability mass function $f$, it is possible to calculate the mean growing time. We can use the CDF to calculate the median growing time.
+
+
+![Growing times](./images/growing_times.png)
+
+All in all, it takes around a month for a tree to grow from a planted seed to full maturity. Note the tree fertilizer shortens this to 4 days exactly. 
+
+
+
+
+## How do trees reproduce? 
+
+```cs
+// check if stage s >= 5  and roll for reproduction with 15% chance
+if ((int)growthStage >= 5 && environment is Farm && Game1.random.NextDouble() < 0.15)
+			{   
+                // randomly select coordinates in 7 x 7 box centered at tree location
+				int xCoord = Game1.random.Next(-3, 4) + (int)tileLocation.X;
+				int yCoord = Game1.random.Next(-3, 4) + (int)tileLocation.Y;
+				Vector2 location = new Vector2(xCoord, yCoord);
+                
+                // check if selected coordinates are a valid loction 
+				string noSpawn = environment.doesTileHaveProperty(xCoord, yCoord, "NoSpawn", "Back");
+				if ((noSpawn == null || (!noSpawn.Equals("Tree") && !noSpawn.Equals("All") && !noSpawn.Equals("True"))) && environment.isTileLocationOpen(new Location(xCoord, yCoord)) && !environment.isTileOccupied(location) && environment.doesTileHaveProperty(xCoord, yCoord, "Water", "Back") == null && environment.isTileOnMap(location))
+				{
+                    // add tree at new location
+					environment.terrainFeatures.Add(location, new Tree(treeType, 0));
+				}
+			}
+```
