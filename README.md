@@ -84,12 +84,63 @@ Here each entry of the matrix gives a transition probability  $A_{ij} = \Pr ( j 
 
 ![Growing times](./images/growing_times.png)
 
-All in all, it takes around a month for a tree to grow from a planted seed to full maturity. Note the tree fertilizer shortens this to 4 days exactly. 
+All in all, it takes around a month for a tree to grow from a planted seed to full maturity. Note the tree fertilizer shortens this to 4 days exactly.   
 
+Here's the game code from the decompiled code. The comments are mine and help highlihgt the important information.
+```cs
+    // checks if night is in growing season, whether or not a tree is present, and if it's fertilized
+    if (!Game1.GetSeasonForLocation(currentLocation).Equals("winter") || (int)treeType == 6 || (int)treeType == 9 || environment.CanPlantTreesHere(-1, (int)tileLocation.X, (int)tileLocation.Y) || fertilized.Value)
+    {
+        string s = environment.doesTileHaveProperty((int)tileLocation.X, (int)tileLocation.Y, "NoSpawn", "Back");
+        if (s != null && (s.Equals("All") || s.Equals("Tree") || s.Equals("True")))
+        {
+            return;
+        }
 
+        // if growth stage is four, check for neighbors
+        if ((int)growthStage == 4)
+        {
+            // loop through neighborhood
+            foreach (KeyValuePair<Vector2, TerrainFeature> t in environment.terrainFeatures.Pairs)
+            {   
+                // check if neighborhood has at least one tree that's growth stage 5 or greater, then don't grow.
+                if (t.Value is Tree && !t.Value.Equals(this) && (int)((Tree)t.Value).growthStage >= 5 && t.Value.getBoundingBox(t.Key).Intersects(growthRect))
+                {
+                    return;
+                }
+            }
+        }
+        else if ((int)growthStage == 0 && environment.objects.ContainsKey(tileLocation))
+        {
+            return;
+        }
+
+        // roll for growth for mahogany trees (15% chance); increases to 60% if fertilized.
+        if ((int)treeType == 8)
+        {
+            if (Game1.random.NextDouble() < 0.15 || (fertilized.Value && Game1.random.NextDouble() < 0.6))
+            {
+                growthStage.Value++;
+            }
+        }
+        // roll for growth for all other tree type; growth probability is increased to 1 if fertilized
+        else if (Game1.random.NextDouble() < 0.2 || fertilized.Value)
+        {
+            growthStage.Value++;
+        }
+    }
+```
 
 
 ## How do trees reproduce? 
+
+Next, we move on to how the trees reproduce. The rule is similar to the growth rule. Every night (transition), each mature tree has a 15% probability of spawning a new planted seed in a 7 by 7 box centered (box of radius 3). The planted seed has an equal chance of going in any cell that is empty. 
+
+![reproduction neighborhood](./images/reproduction_neighborhood.png)
+
+
+However, that's the rules as described on the wiki page, but it was not entirely clear to me how certain edges cases work. So I checked out the game code (annotatations are mine)
+
 
 ```cs
 // check if stage s >= 5  and roll for reproduction with 15% chance
@@ -109,3 +160,14 @@ if ((int)growthStage >= 5 && environment is Farm && Game1.random.NextDouble() < 
 				}
 			}
 ```
+
+Notice that the game first rolls to see if a tree reproduces, then generates a random location in the 7x7 neighborhood aroun the tree. If the selected location is empty, a new seed is created there; otherwise nothing happens. That means two things: trees don't produce more than one seed per reproduction event, and also the 15% is the probability that the tree reproduces in an empty grid. There's 49 spaces, so if only 15 are free, then the chance that this tree adds one new seed is only $15/49 * 0.15 = 9/196$ chance. This means that the rate of reproduction depends on the local density of available space and therefore population density is self-limiting. 
+
+## How do trees die?
+
+As far as I can tell,  Stardew Valley trees don't have any reliable rate of mortality. Or rather the player removes trees, and that's the main way that trees are removed. However, it's easy to see that without some mechanism to remove trees, the grid will simply fill with trees at the highest stage possible. Thus, it might be interesting to add a chance that a stage 5 tree dies per night. That could represent a natural mortality, or it could represent removal by player (or rather an idealized player, since real players wouldn't remove trees at random but according to their needs). 
+
+
+## Putting it all together
+
+
