@@ -163,11 +163,114 @@ if ((int)growthStage >= 5 && environment is Farm && Game1.random.NextDouble() < 
 
 Notice that the game first rolls to see if a tree reproduces, then generates a random location in the 7x7 neighborhood aroun the tree. If the selected location is empty, a new seed is created there; otherwise nothing happens. That means two things: trees don't produce more than one seed per reproduction event, and also the 15% is the probability that the tree reproduces in an empty grid. There's 49 spaces, so if only 15 are free, then the chance that this tree adds one new seed is only $15/49 * 0.15 = 9/196$ chance. This means that the rate of reproduction depends on the local density of available space and therefore population density is self-limiting. 
 
+The game updates the grid of trees sequential, so it calculates whether a cell changes going from west to east (left to right) then north to south (top to bottom)  starting from the north-west (top-left) corner, and ending in the south-east (bottom-right) corner. That means the grid's update is not symmetric and has a slight spatial bias. If there is one space empty, and two trees close enough to fill it by reproduction; the north-western one has a higher chance to (15%) than the south-eastern one $(1 - 0.15)0.15 = 12.75%$. But we won't worry about that issue, since all trees are exactly the same. 
+
+
+
 ## How do trees die?
 
-As far as I can tell,  Stardew Valley trees don't have any reliable rate of mortality. Or rather the player removes trees, and that's the main way that trees are removed. However, it's easy to see that without some mechanism to remove trees, the grid will simply fill with trees at the highest stage possible. Thus, it might be interesting to add a chance that a stage 5 tree dies per night. That could represent a natural mortality, or it could represent removal by player (or rather an idealized player, since real players wouldn't remove trees at random but according to their needs). 
-
+As far as I can tell, Stardew Valley trees don't have any reliable rate of mortality. Or rather the only way trees are removed is that the player removes them. However, it's easy to see that without some mechanism to remove trees, the grid will simply fill with trees at the highest stage possible. Thus, it would be interesting to add a chance that a stage 5 tree dies per night, which could represent a natural mortality, or it could represent removal by player (or rather an idealized player, since real players wouldn't remove trees at random but according to their needs).  
 
 ## Putting it all together
 
+For a basic simulation, the code is simple enough. We only have one type of tree, and five growth stages (plus 0 to represent an empty cell). We will use `numpy` ndarray's for the grid. The array `arr` can either be *space only grid* and store the current state, or the array can be *spacetime grid*  and store every iteration. The grid gets large very fast, so we wouldn't want to do this if the grid was too large, since the grid takes space in memory. Instead, we might save statistics (see the next section), rather than the entire grid. We have a few parameters like grid size. We also must put a single tree to start. 
 
+
+```python
+import numpy as np
+
+# GRID PARAMETERS 
+ntree = 5 # number of tree growth stages
+num =12*2  # size, linear dimension s
+iterations = 800 # number of iterations to calculate
+
+# INITIALIZE GRID
+# grid size enforces 4:3 aspect ratio
+arr_shape = (iterations+1, 3*num, 4*num )
+
+arr = np.zeros(arr_shape, dtype='int64')
+
+# place one stage-1 tree in the middle
+x, y = round(1.5 *num), round(1.5*num)
+arr[0, x, y] = 1
+```
+
+Now we start defining the transition rule. First, we will set up some arrays that define the neighborhood for growth and reproduction. We also set the *vital* (meaning life) parameters for the probability of growth, reproduction, and mortality per time step. 
+
+```python 
+# RULE PARAMETERS
+# neighborhoods : sets distance of spatial interaction 
+growth_neighborhood = np.array([[1,1,1],[1,0,1],[1,1,1]])
+reprod_neighborhood = np.ones((7,7),dtype='int64')
+reprod_neighborhood[3,3] = 0 
+
+# vital parameters  
+reprod_prob = 0.15
+grow_prob = 0.2
+mort_prob = 0.01
+```
+
+Now we set the transition rules. Essentially, we are going to iterate over the entire grid and decide how each cell changes. For cells in stage 1, 2, and 3, we generate a random number to see if they successfully grow. For a 20% probability, that means rolling a d20 die and the cell grows to the next stage if the roll is a 17 or higher. Cells with the growth stage 5 can only die, so the same thing. Note that these processes have no spatial dependence, so they can be calculated in parallel (or vectorized). 
+
+Stage 4 can only grow if there are no stage 5 trees in its neighborhood. Stage 0 (the empty cell) only becomes a filled cell if there are stage 5 trees in reproduction range. Thus the spatial interactions require counting how many cells with a certain stage are in a given neighborhood. We can use a nice mathematical trick to do the counting: convolutions. Convolution is used extensively in signal and image filtering. It is essentially a locally weighted sum or average. I won't explain the details of convolution exactly, but we can take advantage of code designed to calculate the convolution fast. Here's the definition:
+$$
+w \star s = \int w(x-y)f(y) dy  = \sum_y w(x - y) f(y)  
+$$
+So if we have a grid where $f(y)$ assigns some value to the cell $y$, then $w$ gives weights to grid cells in the neighborhood around it. The convolution is thus the weighted average or sum. So $w$ is the Moore neighborhood and $1_{s=5}(s)$ is an indicator function: it equals 1 when $s=5$ and zero otherwise. Then the convolution $n_{s=5} = w \star 1_{s=5}(s(x)) $  returns a function $n_{s=5}(x)$ which is the total number of the stage-5 trees in eight squares around the cell $x$. Pretty neat huh!
+
+
+Note that the game does not use convolutions, and just does a for-loop over the neighborhood. For the game, a for-loop is fine because the grid is small and only updated once per game-night (about 20 min of gameplay). A loading screen occurs, so the game could take several seconds to compute the update (it computes other things). The for-loop is easier to mesh with other aspects of the game and there isn't a need for speed. But if we wanted to simulate much larger grids and over longer periods of time, if we can speed up the calculation, then we can save a lot of time in longer simulations. So it would be nice to use the convolutions. Also, convolutions have nice mathematical properties. So even when it isn't convenient to program the game as a convolution, if we can express the game's calculation, we can still use the properties of convolutions to reason about the simulation. It turns out that this is the case for the growth interference. Counting the number of stage 5 trees blocks stage 4 trees from becoming stage 5, and that can be expressed using a convolution. It is equivalent to how the game simulates the update, although the game doesn't directly calculate a convolution. 
+
+We run into a slight problem however for the reproduction. See the game rolls for each stage 5 tree to see if it reproduces, then if it does, the game randomly chooses an empty cell to put the new seedling. The reproduction event fails if the selected space is not empty; and one tree can only produce one offspring per time step. However, we would like to find a function that gives the probability a given empty cell becomes non-empty. One way to do that is to count the number of stage-5 trees in a neighborhood around the empty cell, and give each one a chance to reproduce into the empty cell. The number of stage-5 trees in the neighborhood can be calculated by convolution. Each one reproduces with a rate of 15% per time step, and selects a given empty cell with probability $1/(7^2 - 1) = 1/48 $. Thus, we can take the overall probability to be $ \beta r_{s=5}(x)/48 $. 
+
+However, this isn't the same rule. In the game, the maximum number of offspring per time step is one. A single stage-5 tree cannot add more than one offspring per night. So imagine a cell with stage 5, surrounded by emtpy cells. Every one of the empty cells has $\beta/48$ of getting an offspring in a single night under our rule, and their probabilities are independent under our rule. The game's rule makes the probability correlated, so the probability of any particular empty cell getting an offspring is correlated. Under the game's rule, there's a  $\beta=15\%$ chance that add one new tree is added to the grid, whereas our rule adds anywhere between 0 and 48 offspring, but the average number added per night is still $\beta$, which is the same average as the game's rule. The variance is different, but we will address this later. Let's go with the convolution rule for now.  
+
+Since it is easier to write the update rule as a for-loop, we will use numba's Just-In-Time (JIT) compiler to speed up the for-loop. However, the convolutions let us calculate the spatial dependence in one fast-step, so the update rule for each cell is parallelizable. Moreover, the convolutions could be further optimized if needed (e.g., saving the fourier transforms, etc.).
+
+``` python 
+from numba import njit
+from scipy.signal import convolve
+
+def iterate(arr):
+    out = np.empty_like(arr)
+
+    S_5 = arr > 4  
+    N_5 = convolve(S_5, growth_neighborhood, mode='same') 
+    R_5 = convolve(S_5, reprod_neighborhood, mode='same')
+    
+    grow_reproduce(out, arr, N_5, R_5)
+    return out
+
+@njit
+def grow_reproduce(out, arr, N5, R5):
+    for i in range(arr.shape[1]):
+        for j in range(arr.shape[2]):
+            s = arr[i,j]
+            u = np.random.rand()
+            if s == 0:
+                out[i,j] = u < (R5[i,j]/48  *reprod_prob)
+            if s == 5:
+                out[i,j] = 5 * (u >= mort_prob)     
+            if 1 <= s < 4:
+                out[i,j] = s +  1 * (u < grow_prob)
+            if s == 4:
+                out[i,j] = s + (u < grow_prob) * (N5[i,j] < 1)
+
+
+def simulate(arr):
+    for n in range(iterations):
+        arr[n+1] = iterate(arr[n])
+```
+
+Now we just call the `simulate` function to run the simulation. The data can then be animated or plotted. 
+
+
+
+
+# Analysis of the dynamics.
+
+
+
+
+
+In the game's rule, the chance of successful reproduction is the chance of selecting an empty cell times the base rate of reproduction. If $r_{s=0} (x) $ is the number of empty cells in the $7\times 7$ box centered at $x$, then the chance is $r_{s=0}(x)/{7^2 - 1} \beta$ where $7^2 -1$ the number of cells in the neighborhood and $\beta = 0.15$ is the base rate of reproduction.  
