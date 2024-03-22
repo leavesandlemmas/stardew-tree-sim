@@ -262,15 +262,19 @@ def simulate(arr):
         arr[n+1] = iterate(arr[n])
 ```
 
-Now we just call the `simulate` function to run the simulation. The data can then be animated or plotted. 
+Now we just call the `simulate` function to run the simulation. This code can be found in `sim_v1.py`. The data can then be animated or plotted. Try `animate_v1.py' to make an animation. 
 
-
+![simulation iterates](./images/sim_v1_grid_iterates.png)
 
 
 # Analysis of the dynamics.
 
+However, we shouldn't stop at making a simulation. Simulations are only useful if we learn something from the simulation. Let's analyze the dynamics. We'll start by looking at some statistics, namely population growth.
 
 
+![simulation statistics](./images/sim_v1_statistics.png)
+
+We immediately see several interesting patterns.
 
 
 In the game's rule, the chance of successful reproduction is the chance of selecting an empty cell times the base rate of reproduction. If $r_{s=0} (x) $ is the number of empty cells in the $7\times 7$ box centered at $x$, then the chance is $r_{s=0}(x)/{7^2 - 1} \beta$ where $7^2 -1$ the number of cells in the neighborhood and $\beta = 0.15$ is the base rate of reproduction.  
