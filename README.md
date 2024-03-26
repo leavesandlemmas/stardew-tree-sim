@@ -279,4 +279,5 @@ However, we shouldn't stop at making a simulation. Simulations are only useful i
 We immediately see several interesting patterns. We get a sigmoidal shape curve. 
 
 
+
 In the game's rule, the chance of successful reproduction is the chance of selecting an empty cell times the base rate of reproduction. If $r_{s=0} (x) $ is the number of empty cells in the $7\times 7$ box centered at $x$, then the chance is $r_{s=0}(x)/{7^2 - 1} \beta$ where $7^2 -1$ the number of cells in the neighborhood and $\beta = 0.15$ is the base rate of reproduction.  

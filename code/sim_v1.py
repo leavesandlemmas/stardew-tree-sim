@@ -64,8 +64,9 @@ def simulate(arr):
 simulate(arr)
 
 wd = os.path.dirname(__file__)
-path = os.path.join(wd,"../data/sim_v1_K4.npy")
+path = os.path.join(wd,"../data/sim_v1.npy")
 path = os.path.normpath(path)
 np.save(path, arr)
+
 
 print("FINISHED. Results saved to:", path,  sep="\n")
