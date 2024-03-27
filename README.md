@@ -213,10 +213,10 @@ mort_prob = 0.01
 Now we set the transition rules. Essentially, we are going to iterate over the entire grid and decide how each cell changes. For cells in stage 1, 2, and 3, we generate a random number to see if they successfully grow. For a 20% probability, that means rolling a d20 die and the cell grows to the next stage if the roll is a 17 or higher. Cells with the growth stage 5 can only die, so the same thing. Note that these processes have no spatial dependence, so they can be calculated in parallel (or vectorized). 
 
 Stage 4 can only grow if there are no stage 5 trees in its neighborhood. Stage 0 (the empty cell) only becomes a filled cell if there are stage 5 trees in reproduction range. Thus the spatial interactions require counting how many cells with a certain stage are in a given neighborhood. We can use a nice mathematical trick to do the counting: convolutions. Convolution is used extensively in signal and image filtering. It is essentially a locally weighted sum or average. I won't explain the details of convolution exactly, but we can take advantage of code designed to calculate the convolution fast. Here's the definition:
-$$
-w \star s = \int w(x-y)f(y) dy  = \sum_y w(x - y) f(y)  
-$$
-So if we have a grid where $f(y)$ assigns some value to the cell $y$, then $w$ gives weights to grid cells in the neighborhood around it. The convolution is thus the weighted average or sum. So $w$ is the Moore neighborhood and $1_{s=5}(s)$ is an indicator function: it equals 1 when $s=5$ and zero otherwise. Then the convolution $n_{s=5} = w \star 1_{s=5}(s(x)) $  returns a function $n_{s=5}(x)$ which is the total number of the stage-5 trees in eight squares around the cell $x$. Pretty neat huh!
+
+\[ w \star s = \int w(x-y)f(y) dy  = \sum_y w(x - y) f(y) \]
+
+So if we have a grid where $f(y)$ assigns some value to the cell $y$, then $w$ gives weights to grid cells in the neighborhood around it. The convolution is thus the weighted average or sum. So $w$ is the Moore neighborhood and $1_{s=5}(s)$ is an indicator function: it equals 1 when $s=5$ and zero otherwise. Then the convolution $n_{s=5} = w \star 1_{s=5}(s(x))$  returns a function $n_{s=5}(x)$ which is the total number of the stage-5 trees in eight squares around the cell $x$. Pretty neat huh!
 
 
 Note that the game does not use convolutions, and just does a for-loop over the neighborhood. For the game, a for-loop is fine because the grid is small and only updated once per game-night (about 20 min of gameplay). A loading screen occurs, so the game could take several seconds to compute the update (it computes other things). The for-loop is easier to mesh with other aspects of the game and there isn't a need for speed. But if we wanted to simulate much larger grids and over longer periods of time, if we can speed up the calculation, then we can save a lot of time in longer simulations. So it would be nice to use the convolutions. Also, convolutions have nice mathematical properties. So even when it isn't convenient to program the game as a convolution, if we can express the game's calculation, we can still use the properties of convolutions to reason about the simulation. It turns out that this is the case for the growth interference. Counting the number of stage 5 trees blocks stage 4 trees from becoming stage 5, and that can be expressed using a convolution. It is equivalent to how the game simulates the update, although the game doesn't directly calculate a convolution. 
@@ -276,8 +276,13 @@ However, we shouldn't stop at making a simulation. Simulations are only useful i
 
 
 
-We immediately see several interesting patterns. We get a sigmoidal shape curve. 
+We immediately see several interesting patterns. 
+
+1. Population growth is a sigmoidal shape (S-shape) curve. The total of trees increases at an accelerating rate which slows and stops as the grid fills. 
+2. Stages 1-3 all have about the same number of trees at any time. 
+3. The number of stage 4 and 5 trees is a constant ratio once the grid fills.
+4. The grid ends up with a interesting pattern; the density and spacing of stage 5 trees is roughly the same.
+
+Why do these patterns occur? Moreover how do they change if we modify the rules or parameters of the simulation?
 
 
-
-In the game's rule, the chance of successful reproduction is the chance of selecting an empty cell times the base rate of reproduction. If $r_{s=0} (x) $ is the number of empty cells in the $7\times 7$ box centered at $x$, then the chance is $r_{s=0}(x)/{7^2 - 1} \beta$ where $7^2 -1$ the number of cells in the neighborhood and $\beta = 0.15$ is the base rate of reproduction.  

@@ -37,8 +37,10 @@ ani = FuncAnimation(fig, animate, frames=arr.shape[0], interval=100)
 fig.set_tight_layout(True)
 
 # to show
-plt.show()
+# plt.show()
 
 # to save
-save_path = os.path.join(wd, '../video/tree_sim_v1.mp4')
-# ani.save(save_path)
+
+save_path = os.path.join(wd, '../videos/tree_sim_v1.mp4')
+save_path = os.path.normpath(save_path)
+ani.save(save_path)
