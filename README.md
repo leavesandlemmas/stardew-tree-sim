@@ -212,12 +212,16 @@ mort_prob = 0.01
 
 Now we set the transition rules. Essentially, we are going to iterate over the entire grid and decide how each cell changes. For cells in stage 1, 2, and 3, we generate a random number to see if they successfully grow. For a 20% probability, that means rolling a d20 die and the cell grows to the next stage if the roll is a 17 or higher. Cells with the growth stage 5 can only die, so the same thing. Note that these processes have no spatial dependence, so they can be calculated in parallel (or vectorized). 
 
-Stage 4 can only grow if there are no stage 5 trees in its neighborhood. Stage 0 (the empty cell) only becomes a filled cell if there are stage 5 trees in reproduction range. Thus the spatial interactions require counting how many cells with a certain stage are in a given neighborhood. We can use a nice mathematical trick to do the counting: convolutions. Convolution is used extensively in signal and image filtering. It is essentially a locally weighted sum or average. I won't explain the details of convolution exactly, but we can take advantage of code designed to calculate the convolution fast. Here's the definition:
+Stage 4 can only grow if there are no stage 5 trees in its neighborhood. Stage 0 (the empty cell) only becomes a filled cell if there are stage 5 trees in reproduction range. Thus the spatial interactions require counting how many cells with a certain stage are in a given neighborhood. We can use a nice mathematical trick to do the counting: convolutions. Convolution is used extensively in signal and image filtering. It is essentially a locally weighted sum or average. I won't explain the details of convolution exactly, but we can take advantage of code designed to calculate the convolution fast. Here's the definition (inpython-style pseudo-code; Github doesn't support Latex rendering easily):
 
-\[ w \star s = \int w(x-y)f(y) dy  = \sum_y w(x - y) f(y) \]
+```python 
+def convolve(f,g): 
+    def new_func(x):
+        return sum(w(y) * f(x - y) for y in neighborhood) 
+    return new_func 
+```
 
 So if we have a grid where $f(y)$ assigns some value to the cell $y$, then $w$ gives weights to grid cells in the neighborhood around it. The convolution is thus the weighted average or sum. So $w$ is the Moore neighborhood and $1_{s=5}(s)$ is an indicator function: it equals 1 when $s=5$ and zero otherwise. Then the convolution $n_{s=5} = w \star 1_{s=5}(s(x))$  returns a function $n_{s=5}(x)$ which is the total number of the stage-5 trees in eight squares around the cell $x$. Pretty neat huh!
-
 
 Note that the game does not use convolutions, and just does a for-loop over the neighborhood. For the game, a for-loop is fine because the grid is small and only updated once per game-night (about 20 min of gameplay). A loading screen occurs, so the game could take several seconds to compute the update (it computes other things). The for-loop is easier to mesh with other aspects of the game and there isn't a need for speed. But if we wanted to simulate much larger grids and over longer periods of time, if we can speed up the calculation, then we can save a lot of time in longer simulations. So it would be nice to use the convolutions. Also, convolutions have nice mathematical properties. So even when it isn't convenient to program the game as a convolution, if we can express the game's calculation, we can still use the properties of convolutions to reason about the simulation. It turns out that this is the case for the growth interference. Counting the number of stage 5 trees blocks stage 4 trees from becoming stage 5, and that can be expressed using a convolution. It is equivalent to how the game simulates the update, although the game doesn't directly calculate a convolution. 
 
@@ -266,6 +270,13 @@ Now we just call the `simulate` function to run the simulation. This code can be
 
 ![simulation iterates](./images/sim_v1_grid_iterates.png)
 
+## Running your own simulations
+
+1. Use `sim_v1.py` to simulate and save the grid as `.npy` file.
+2. Load the `.npy` by `plot_v1.py` to plot statistics. 
+3. Load the `.npy` file by `animate_v1.py` to animate it. 
+
+That's it! Tweak the simulate parameters to get different outcomes. 
 
 # Analysis of the dynamics.
 
@@ -284,5 +295,12 @@ We immediately see several interesting patterns.
 4. The grid ends up with a interesting pattern; the density and spacing of stage 5 trees is roughly the same.
 
 Why do these patterns occur? Moreover how do they change if we modify the rules or parameters of the simulation?
+
+Ideas:
+
+1. Symmetry -> Transition Rules are spatial isotropic (totalistic)
+2. Markov Chains -> Kramers Moyal Expansion -> Mean Field Approximation
+3. Renormalization -> Scale Invariance -> 
+
 
 

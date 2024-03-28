@@ -23,7 +23,7 @@ def count(arr):
 
 
 wd = os.path.dirname(__file__)
-load_path = os.path.join(wd,"../data/sim_v1_K4.npy")
+load_path = os.path.join(wd,"../data/sim_v3.npy")
 load_path = os.path.normpath(load_path)
 arr = np.load(load_path)
 arr_color = color(arr)
@@ -35,7 +35,10 @@ N = counts[:, 1:].sum(axis=1)
 # Grid Sizr
 Kmax = arr.shape[1]*arr.shape[2]
 # Iterations to plot
-iterations = [100, 250, 500, 1100] 
+nint = 4
+iterations = np.linspace(
+    arr.shape[0]/(nint+1), nint*arr.shape[0]/(nint+1), nint)
+iterations = iterations.astype('int64')
 
 fig, ax  =plt.subplots(1,3,sharex='row',figsize =(4*3,3))
 

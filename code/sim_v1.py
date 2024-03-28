@@ -6,8 +6,8 @@ from scipy.signal import convolve
 
 # GRID PARAMETERS 
 ntree = 5 # number of tree growth stages
-num = 12*3  # size, linear dimension s
-iterations = 2000 # number of iterations to calculate
+num = 12*10  # size, linear dimension s
+iterations = 100 # number of iterations to calculate
 
 # INITIALIZE GRID
 # grid size enforces 4:3 aspect ratio
@@ -19,6 +19,9 @@ arr = np.zeros(arr_shape, dtype='int64')
 # place one stage-1 tree in the middle
 x, y = round(1.5 *num), round(1.5*num)
 arr[0, x, y] = 1
+
+# random start
+arr[0,:,:] = np.random.randint(0,6,size = (3*num,4*num))
 
 # RULE PARAMETERS
 # neighborhoods : sets distance of spatial interaction 
@@ -64,7 +67,7 @@ def simulate(arr):
 simulate(arr)
 
 wd = os.path.dirname(__file__)
-path = os.path.join(wd,"../data/sim_v1.npy")
+path = os.path.join(wd,"../data/sim_v3.npy")
 path = os.path.normpath(path)
 np.save(path, arr)
 

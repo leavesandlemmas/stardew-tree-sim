@@ -22,7 +22,7 @@ def animate(i):
     return im
 
 wd = os.path.dirname(__file__)
-load_path = os.path.join(wd,"../data/sim_v1.npy")
+load_path = os.path.join(wd,"../data/sim_v3.npy")
 load_path = os.path.normpath(load_path)
 arr = np.load(load_path)
 arr_color = color(arr)
@@ -37,10 +37,10 @@ ani = FuncAnimation(fig, animate, frames=arr.shape[0], interval=100)
 fig.set_tight_layout(True)
 
 # to show
-# plt.show()
+plt.show()
 
 # to save
 
 save_path = os.path.join(wd, '../videos/tree_sim_v1.mp4')
 save_path = os.path.normpath(save_path)
-ani.save(save_path)
+# ani.save(save_path)
