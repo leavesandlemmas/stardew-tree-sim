@@ -1,0 +1,17 @@
+name: tree_sim
+channels:
+  - conda-forge
+dependencies:
+  # base
+  - python
+  - pip
+  # core
+  - numpy
+  - scipy
+  - numba
+  # visualization
+  - matplotlib
+  # c++
+  - cmake
+  - tbb-devel
+  - hdf5
