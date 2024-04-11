@@ -23,7 +23,7 @@ def count(arr):
 
 
 wd = os.path.dirname(__file__)
-load_path = os.path.join(wd,"../data/sim_v3.npy")
+load_path = os.path.join(wd,"../data/sim_v1.npy")
 load_path = os.path.normpath(load_path)
 arr = np.load(load_path)
 arr_color = color(arr)
@@ -76,6 +76,11 @@ for i, iteration in enumerate(iterations):
     ax[i].imshow(arr_color[iteration])
 
 fig.set_tight_layout(True)
+
+
+fig, ax  =plt.subplots(1,1,sharex='row')
+ax.plot(N[:-1],np.diff(N))
+ax.grid()
 
 
 # fig, ax  =plt.subplots(1,4,figsize =(4*4,4))
