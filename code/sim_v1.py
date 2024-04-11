@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import os
 from numba import njit
 from scipy.signal import convolve
@@ -65,6 +64,10 @@ def simulate(arr):
 
 
 simulate(arr)
+
+# make data directory if it does not exist
+if not os.path.exists("../data"):
+    os.makedirs("../data")
 
 wd = os.path.dirname(__file__)
 path = os.path.join(wd,"../data/sim_v3.npy")
