@@ -11,6 +11,8 @@ dependencies:
   - numba
   # visualization
   - matplotlib
+  # data
+  - h5py
   # c++
   - cmake
   - tbb-devel
