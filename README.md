@@ -411,6 +411,8 @@ That's it! Tweak the simulate parameters to get different outcomes.
 
 # Analysis of the dynamics.
 
+**WORK IN PROGRESS**
+
 However, we shouldn't stop at making a simulation.
 Simulations are only useful if we learn something from the simulation.
 Let's analyze the dynamics.
@@ -430,6 +432,14 @@ We immediately see several interesting patterns.
 
 Why do these patterns occur?
 Moreover how do they change if we modify the rules or parameters of the simulation?
+
+The intuition for some of these patterns is pretty simple. When the grid is mostly empty, the population growth is exponential (asymptotically at $N\rightarrow 0$) because it takes about 20 days on average to go from stage 1 to stage 5 and about 7 days to produce an offspring. Thus, the population should grow at a rate of about 1/27 per day. The rate slows down for two reasons. First, the available space runs out and the grid fills up, leading to the static population size (with random fluctuations). However, the slow down begins before that happens because the local space around each tree fills up before the entire grid does. So only trees near the edge of the forest really contribute to the overall population growth. That stages 1-3 have the same number of trees makes sense because they have the same rate to grow, and the same rate to die. The constant ratio corresponds to the blocking effect (stage 5 block stage 4 from growing). But can we be more numerically? 
+
+
+## Markov Chains 
+
+In essence, the simulation is one very large markov chain, so we could simply analyze that way. The obvious thing to do with a markov chain is to compute its transition map as matrix, then factor the matrix. The eigenvectors with eigenvalues of $1$ are the stationary distributions. But we run into a problem. The matrix is very, very large. For a single cell, there are 6 possible states, so the probability distribution on the state is a vector in $\mathbb{R}^6$ but on two cells it must be an element of $\mathbb{R}^{6^2} = \mathbb{R}^{36} $; so on a grid of 48 by 64 cells we get a $6^3072$ dimensional vector as the probability distribution; i.e., about $10^{2390}$ which is far more than the number of atoms in the universe (apparently).  The matrix is even larger at about $10^{4780}$ because its dimension is the square of the dimension of its input space's dimension.
+
 
 Ideas:
 
