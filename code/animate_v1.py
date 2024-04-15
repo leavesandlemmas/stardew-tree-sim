@@ -41,6 +41,10 @@ plt.show()
 
 # to save
 
+# create a data directory if it does not exist
+if not os.path.exists("../videos"):
+    os.makedirs("../videos")
+
 save_path = os.path.join(wd, '../videos/tree_sim_v1.mp4')
 save_path = os.path.normpath(save_path)
 # ani.save(save_path)
