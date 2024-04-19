@@ -19,3 +19,4 @@ dependencies:
   - hdf5
   - spdlog
   - clang-format
+  - nlohmann_json

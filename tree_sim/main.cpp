@@ -5,27 +5,32 @@
 
 #include <array>
 #include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <random>
 #include <vector>
 
 #include "spdlog/spdlog.h"
 
-// Define the grid size and other constants
-constexpr size_t ntree = 5;
-constexpr size_t num = 120;  // 12*10, using a linear dimension
-constexpr size_t iterations = 100;
-constexpr size_t width = 4 * num;  // aspect ratio 4:3
-constexpr size_t height = 3 * num;
-const double reprod_prob = 0.15;
-const double grow_prob = 0.2;
-const double mort_prob = 0.01;
+using json = nlohmann::json;
+
+struct SimulationConfig {
+  size_t ntree = 5;
+  size_t num = 120;
+  size_t iterations = 100;
+  size_t width = 480;   // Default as 4 * num
+  size_t height = 360;  // Default as 3 * num
+  double reprod_prob = 0.15;
+  double grow_prob = 0.2;
+  double mort_prob = 0.01;
+};
 
 // Define the neighborhood for growth and reproduction kernels
 const std::vector<std::vector<int>> growth_neighborhood = {
-    {1, 1, 1},
-    {1, 0, 1},
-    {1, 1, 1}};
+  {1, 1, 1},
+  {1, 0, 1},
+  {1, 1, 1}};
 const std::vector<std::vector<int>> reprod_neighborhood = {
     {1, 1, 1, 1, 1, 1, 1},
     {1, 1, 1, 1, 1, 1, 1},
@@ -39,29 +44,45 @@ const std::vector<std::vector<int>> reprod_neighborhood = {
 using GridType = std::vector<std::vector<std::vector<int>>>;
 
 // Forward declarations
-void initializeGrid(GridType& grid);
+void loadConfigFromFile(const std::string& filename, SimulationConfig& config);
+void initializeGrid(GridType& grid, const SimulationConfig& config);
 void apply_convolution_tbb(const GridType& grid, std::vector<std::vector<int>>& result,
                            const std::vector<std::vector<int>>& kernel, size_t iter);
-void simulate(GridType& grid);
+void simulate(GridType& grid, const SimulationConfig& config);
 void saveResultsToHDF5(const GridType& grid, const std::string& filename = "tree_growth_simulation.h5");
 void setup_logging();
 
 /**
  * @brief Main function to run the simulation
  */
-int main() {
+int main(int argc, char* argv[]) {
   // Initialize the logger
   setup_logging();
   spdlog::info("Starting simulation...");
 
+  SimulationConfig config;  // Default values initialized
+
+  if (argc > 1) {
+    std::string configFile = argv[1];
+    if (std::filesystem::exists(configFile)) {
+      loadConfigFromFile(configFile, config);
+      spdlog::info("Configuration loaded from file: {}", configFile);
+    } else {
+      spdlog::error("Configuration file does not exist: {}", configFile);
+      return 1;  // Exit with an error code
+    }
+  } else {
+    spdlog::warn("No configuration file provided. Using default settings.");
+  }
+
   // Initialize the grid
   spdlog::info("Initializing grid...");
-  GridType grid(iterations + 1, std::vector<std::vector<int>>(height, std::vector<int>(width, 0)));
-  initializeGrid(grid);
+  GridType grid(config.iterations + 1, std::vector<std::vector<int>>(config.height, std::vector<int>(config.width, 0)));
+  initializeGrid(grid, config);
 
   // Run the simulation
   spdlog::info("Running simulation...");
-  simulate(grid);
+  simulate(grid, config);
 
   // Save results
   spdlog::info("Saving results...");
@@ -72,15 +93,46 @@ int main() {
 }
 
 /**
+ * @brief Load the simulation configuration from a JSON file
+ *
+ * @param filename The filename to load the configuration from
+ * @param config The configuration object to store the loaded values
+ */
+void loadConfigFromFile(const std::string& filename, SimulationConfig& config) {
+  try {
+    std::ifstream file(filename);
+    nlohmann::json json;
+    file >> json;
+
+    // Only override config if the key exists in the JSON file
+    if (json.contains("ntree")) config.ntree = json["ntree"].get<size_t>();
+    if (json.contains("num")) config.num = json["num"].get<size_t>();
+    if (json.contains("iterations")) config.iterations = json["iterations"].get<size_t>();
+    if (json.contains("width")) config.width = json["width"].get<size_t>();
+    if (json.contains("height")) config.height = json["height"].get<size_t>();
+    if (json.contains("reprod_prob")) config.reprod_prob = json["reprod_prob"].get<double>();
+    if (json.contains("grow_prob")) config.grow_prob = json["grow_prob"].get<double>();
+    if (json.contains("mort_prob")) config.mort_prob = json["mort_prob"].get<double>();
+
+    spdlog::info("Configuration loaded from file: {}", filename);
+  } catch (const std::exception& e) {
+    spdlog::error("Error reading configuration: {}", e.what());
+    // exiting on error
+    exit(1);
+  }
+}
+
+/**
  * @brief Initialize the grid with random values
  *
  * @param grid The grid to be initialized
+ * @param config The configuration object to use for initialization
  */
-void initializeGrid(GridType& grid) {
+void initializeGrid(GridType& grid, const SimulationConfig& config) {
   // Random number engine
   std::random_device rd;   // Seed for the random number engine
   std::mt19937 gen(rd());  // Standard mersenne_twister_engine seeded with rd()
-  std::uniform_int_distribution<> distrib(0, ntree);
+  std::uniform_int_distribution<> distrib(0, config.ntree);
 
   // Set all cells to zero initially
   for (auto& slice : grid) {
@@ -97,8 +149,8 @@ void initializeGrid(GridType& grid) {
   }
 
   // Place a central tree
-  size_t central_x = height / 2;
-  size_t central_y = width / 2;
+  size_t central_x = config.height / 2;
+  size_t central_y = config.width / 2;
   grid[0][central_x][central_y] = 1;  // Placing a young tree at the center
 }
 
@@ -141,10 +193,11 @@ void apply_convolution_tbb(const GridType& grid, std::vector<std::vector<int>>& 
  * @brief Simulate the growth and reproduction of trees
  *
  * @param grid The grid to simulate
+ * @param config The configuration object to use for simulation
  */
-void simulate(GridType& grid) {
-  size_t height = grid[0].size();
-  size_t width = grid[0][0].size();
+void simulate(GridType& grid, const SimulationConfig& config) {
+  size_t height = config.height;
+  size_t width = config.width;
 
   // Temp grid for convolution results
   std::vector<std::vector<int>> N5(height, std::vector<int>(width, 0));
@@ -155,7 +208,7 @@ void simulate(GridType& grid) {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<> dis(0.0, 1.0);
 
-  for (size_t iter = 0; iter < iterations; ++iter) {
+  for (size_t iter = 0; iter < config.iterations; ++iter) {
     // Apply convolution to calculate N5 and R5
     apply_convolution_tbb(grid, N5, growth_neighborhood, iter);
     apply_convolution_tbb(grid, R5, reprod_neighborhood, iter);
@@ -171,8 +224,8 @@ void simulate(GridType& grid) {
         double random_chance = dis(gen);
 
         // Growth logic
-        if (static_cast<size_t>(cell) > 0 && static_cast<size_t>(cell) < ntree) {
-          if (random_chance < grow_prob && N5[i][j] < 1) {
+        if (static_cast<size_t>(cell) > 0 && static_cast<size_t>(cell) < config.ntree) {
+          if (random_chance < config.grow_prob && N5[i][j] < 1) {
             new_cell = cell + 1;  // grow to next stage
           } else {
             new_cell = cell;  // remain at current stage
@@ -180,13 +233,13 @@ void simulate(GridType& grid) {
         }
         // Reproduction logic
         else if (cell == 0) {
-          if (random_chance < reprod_prob * (R5[i][j] / 48.0)) {
+          if (random_chance < config.reprod_prob * (R5[i][j] / 48.0)) {
             new_cell = 1;  // new tree born
           }
         }
         // Mortality logic
-        else if (static_cast<size_t>(cell) == ntree) {
-          if (random_chance < mort_prob) {
+        else if (static_cast<size_t>(cell) == config.ntree) {
+          if (random_chance < config.mort_prob) {
             new_cell = 0;  // tree dies
           } else {
             new_cell = cell;  // remains at maximum growth
@@ -232,11 +285,11 @@ void saveResultsToHDF5(const GridType& grid, const std::string& filename) {
 
     // Create a dataset creation property list
     H5::DSetCreatPropList prop_list;
-    prop_list.setDeflate(6); // Sets the compression level. Here, '6' is a good trade-off between speed and compression efficiency.
+    prop_list.setDeflate(6);  // Sets compression level to '6'
 
     // Define chunk dimensions, typically smaller portions of the dataset dimensions.
-    hsize_t chunk_dims[3] = {1, grid[0].size(), grid[0][0].size()}; // Chunking strategy
-    prop_list.setChunk(3, chunk_dims); // Apply chunking
+    hsize_t chunk_dims[3] = {1, grid[0].size(), grid[0][0].size()};  // Chunking strategy
+    prop_list.setChunk(3, chunk_dims);                               // Apply chunking
 
     // Create a new dataset within the file using defined dataspace and datatype.
     H5::DataSet dataset = file.createDataSet("TreeGrowthData", datatype, dataspace, prop_list);
