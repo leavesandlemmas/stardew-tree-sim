@@ -11,6 +11,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 find_package(TBB CONFIG REQUIRED)
 find_package(HDF5 REQUIRED COMPONENTS CXX)
 find_package(spdlog REQUIRED)
+find_package(nlohmann_json REQUIRED)
 
 # Include directories for HDF5
 include_directories(${HDF5_INCLUDE_DIRS})
@@ -31,6 +32,9 @@ add_compile_options(
   -Wextra
 )
 
+# Copy example configuration file to build directory
+file(COPY ${CMAKE_SOURCE_DIR}/resources/data DESTINATION ${CMAKE_BINARY_DIR})
+
 # Add executable
 add_executable(TreeGrowthSim tree_sim/main.cpp)
 
@@ -40,5 +44,6 @@ target_link_libraries(
     PRIVATE
     TBB::tbb
     spdlog::spdlog
+    nlohmann_json::nlohmann_json
     ${HDF5_LIBRARIES}
 )
