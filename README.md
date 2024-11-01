@@ -411,7 +411,6 @@ That's it! Tweak the simulate parameters to get different outcomes.
 
 # Analysis of the dynamics.
 
-**WORK IN PROGRESS**
 
 However, we shouldn't stop at making a simulation.
 Simulations are only useful if we learn something from the simulation.
@@ -436,13 +435,32 @@ Moreover how do they change if we modify the rules or parameters of the simulati
 The intuition for some of these patterns is pretty simple. When the grid is mostly empty, the population growth is exponential (asymptotically at $N\rightarrow 0$) because it takes about 20 days on average to go from stage 1 to stage 5 and about 7 days to produce an offspring. Thus, the population should grow at a rate of about 1/27 per day. The rate slows down for two reasons. First, the available space runs out and the grid fills up, leading to the static population size (with random fluctuations). However, the slow down begins before that happens because the local space around each tree fills up before the entire grid does. So only trees near the edge of the forest really contribute to the overall population growth. That stages 1-3 have the same number of trees makes sense because they have the same rate to grow, and the same rate to die. The constant ratio corresponds to the blocking effect (stage 5 block stage 4 from growing). But can we be more numerically? 
 
 
-## Markov Chains 
+## Stochastic Cellular Automata and Markov Chains 
 
-In essence, the simulation is one very large markov chain, so we could simply analyze that way. The obvious thing to do with a markov chain is to compute its transition map as matrix, then factor the matrix. The eigenvectors with eigenvalues of $1$ are the stationary distributions. But we run into a problem. The matrix is very, very large. For a single cell, there are 6 possible states, so the probability distribution on the state is a vector in $\mathbb{R}^6$ but on two cells it must be an element of $\mathbb{R}^{6^2} = \mathbb{R}^{36} $; so on a grid of 48 by 64 cells we get a $6^3072$ dimensional vector as the probability distribution; i.e., about $10^{2390}$ which is far more than the number of atoms in the universe (apparently).  The matrix is even larger at about $10^{4780}$ because its dimension is the square of the dimension of its input space's dimension.
+The simulation is an example of stochastic cellular automata. The state of the entire system is discrete and time is also discrete. The transition from one state to another is random. Space is a lattice $\mathbb{Z}^2$ and a **configuration** of grid is a function $\sigma: \mathbb{Z}^2 \to \lbrace 0, 1, \ldots, 5\rbrace$, essentially just a choice of growth stage for each cell. We can also call a configuration $\sigma$ a **pure** state. We can compute the probability of observing a certain configuration, which is a **mixed** state. The update rule is a conditional probability distribution:
+
+$$
+P(\sigma_{n+1} | \sigma_n)
+$$
+
+It gives the probability of a transition. In fact, the update rule can be thought of as a list of deterministic transition rules with a probability of selecting one. We can compute the probability of observing a certain sequence of configurations $\xi = \simga_0, \sigma_1, \ldots$:
+
+$$
+P(\xi) = P(\simga_0, \sigma_1, \sigma_2, \sigma_3, \ldots) = P(\sigma_0)P(\sigma_1 |\sigma_0) P(\sigma_2 |\sigma_1) \ldots P(\sigma_{n+1} |\sigma_n)\ldots
+$$
+
+By summing over all possible intermediates, we can compute a mixed state $P(\sigma_n)$. This is exactly how stochastic processes are defined. The simulation generates a **draw** from the update rule, and produces a random sequence of configurations. In essence, a stochastic cellular automata is a markov chain, so we could simply analyze them that way. 
+
+However, the markov chain is over a very large configuration space. The obvious thing to do with a markov chain is to compute its transition map as matrix, then factor the matrix. The eigenvectors with eigenvalues of $1$ are the stationary distributions. But we run into a problem. The matrix is very, very large. Each configuration is a function from the finite grid $N^2$ to a finite set of size 6. Thus, there are $6^{N^2}$ possible configurations. A mixed state assigns each configuration a probability so it is a vector in $[0,1]^{6^{N^2}}$ so on a grid of 48 by 64 cells , there are $6^{3072}$ configurations or about $10^{2390}$ configurations ( which is far more than the number of atoms in the universe (apparently)). To write down the transition rule as a matrix, we'd need a 2D array with dimensions $6^{3072}$ by $6^{3072}$. Thus, treating our stochastic cellular automata as a markov chain isn't that useful.
+
+There are a few useful insights. For example, we can determine some things about the stationary distributions. Every configuration has a non-zero probability of transitioning to another if we can find a sequence of transitions that converts a configuration to another. 
+
+But stochastic cellular automata aren't just markov chains! A markov chain assumes very little structure, but interesting stochastic cellular automata always have a lot of additional structure. The update rule is **local**, the transition of a particular cell depends only on a certain neighborhood of cells. Locality automatically implies that the update rule is invariant under spatial translations. The markov property also gives us time-translation invariance. The update rule often involves counting the number of neighboring cells with a certain state. As a result, the exact distribution in spatial is irrelevant. This yields rotational and reflectional symmetries (as many as the grid permits) for the Moore and von Neumann neighborhoods. For larger neighborhoods, the number of symmetries can be even higher!
 
 
-Ideas:
 
-1. Symmetry -> Transition Rules are spatial isotropic (totalistic)
-2. Markov Chains -> Kramers Moyal Expansion -> Mean Field Approximation
-3. Renormalization -> Scale Invariance -> 
+
+
+
+
+
