@@ -22,18 +22,18 @@ link_directories(
 )
 
 # Add compiler flags
-add_compile_options(
-  -O3
-  -std=c++20
-  -march=native
-  -ffast-math
-  -pthread
-  -Wall
-  -Wextra
-)
+# add_compile_options(
+#   -O3
+#   -std=c++20
+#   -march=native
+#   -ffast-math
+#   -pthread
+#   -Wall
+#   -Wextra
+# )
 
-# Copy example configuration file to build directory
-file(COPY ${CMAKE_SOURCE_DIR}/resources/data DESTINATION ${CMAKE_BINARY_DIR})
+# # Copy example configuration file to build directory
+# file(COPY ${CMAKE_SOURCE_DIR}/resources/data DESTINATION ${CMAKE_BINARY_DIR})
 
 # Add executable
 add_executable(TreeGrowthSim tree_sim/main.cpp)
