@@ -1,12 +1,15 @@
 # stardew-tree-sim
-This repository is a project that explores a simulation and mathematical analysis of a simplified model of tree dynamics, based on how trees grow and spread in the video game [Stardew Valley](https://www.stardewvalley.net/). 
+
+A simulation and mathematical analysis of a simplified model of tree population dynamics, based on how trees grow and spread in the video game Stardew Valley.
+
+Methods: stochastic cellular automata · Markov chains · convolution-based neighbor counting · Python (NumPy, SciPy, numba)
 
 ## Overview of a Stardew Valley Forest
 
 
 ![Forest on stardew valley farm](./images/20231018082043_1.jpg)
 
-THe screenshot above shows an example of the vegetation on a farm in Stardew Valley.
+The screenshot above shows an example of the vegetation on a farm in Stardew Valley.
 There are several types of trees, grass, and other vegetation.
 The trees and grass naturally spread to fill available space.
 Thinking like a biologist, we might wonder: How quickly do the trees fill area?
@@ -21,7 +24,7 @@ You can see a red square that indicates one cell of this grid.
 
 ![Close up of forest, showing a red square of one cell](./images/treegrid_latent.jpg)
 
-If we draw the grid, we see that each individual tree, tuff of grass, bush, and so on occupy a single cell in a grid. 
+If we draw the grid, we see that each individual tree, tuft of grass, bush, and so on occupy a single cell in a grid. 
 
 ![Close up of forest, superimposed red grid](./images/treegrid.jpg)
 
@@ -65,10 +68,10 @@ If we define a local transition rule for each **neighborhood**, we can apply thi
 Note we sometimes have to make special choices for the boundary of the grid, similar to boundary conditions for differential equations.
 We can vary the neighborhood for rules that have a longer distance spatial interaction. 
 
-![von neumann neghborhood](./images/neighborhood_compass.png)
+![von neumann neighborhood](./images/neighborhood_compass.png)
 
 
-![two layer moore neghborhood](./images/neighborhood_big_moore.png)
+![two layer moore neighborhood](./images/neighborhood_big_moore.png)
 
 
 In many physical systems, we wish represent to how some quantity varies in space and time in a region of space.
@@ -77,7 +80,7 @@ Or the distribution of temperature and pressure.
 Or in this case, the distribution of trees by various growth stages.
 There are several common ways to represent such systems mathematically.
 A quick way to classify them is by asking if states, time, space are discrete or continuous.
-Continuous states, time, or space means we can use $n$_tuples of real numbers $\mathbb{R}^n$ instead of integers $\mathbb{Z}^n$.
+Continuous states, time, or space means we can use $n$-tuples of real numbers $\mathbb{R}^n$ instead of integers $\mathbb{Z}^n$.
 Cellular automata are what you get when all three are discrete.
 You can see some other examples.
 
@@ -109,7 +112,7 @@ In Stardew Valley, these processes occur over night while the player sleeps.
 Thus our transition rule is discrete time.
 Of these processes, growth is simpler. Note there are five growth stages.
 According to the [Stardew Valley wiki on trees](https://stardewvalleywiki.com/Trees#Growth_Cycle), the oak, maple, and pine trees have a 20% chance to grow per night increase in growth state, except for the transition from growth state $s=4$ to growth stage $s=5$.
-The transition from $4 \to 5$ cannot occur for a given cell, if there is a stage 5 tree in the Moore neighborhood (the 8 currounding cells) of the cell. 
+The transition from $4 \to 5$ cannot occur for a given cell, if there is a stage 5 tree in the Moore neighborhood (the 8 surrounding cells) of the cell. 
 
 The wiki says this last transition takes "twice as a long" (which should mean a 10%), however, investigating the [decompiled game code](https://github.com/veywrn/StardewValley/tree/master), the method which updates tree, the method [Tree:dayUpdate](https://github.com/veywrn/StardewValley/blob/master/StardewValley/TerrainFeatures/Tree.cs) appears to show a 20% for the last stage.
 We won't worry too much about that, because ultimately we want to calculate how much the overall behavior depends on such choices.
@@ -139,7 +142,7 @@ Note that the diagonals are the probability that no change occurs.
 Note also that the final stage is an *absorbing state*.
 Once a tree is mature, it stays there in this Markov chain (other processes will change that later).
 Using matrix powers $A^n $, we can calculate the probability of transition from a given state $j$ to any other state $i$ after $n$ transitions (or $n$ nights in game).
-This means that the entry $(A^n)_{51}$ is the cumulative density function $F(n) $ for the growing time, the number of days (or nights) until fully grown.
+This means that the entry $(A^n)_{51}$ is the cumulative distribution function $F(n)$ for the growing time, the number of days (or nights) until fully grown.
 The CDF $F(n)$ is the probability that after $n$ days, a tree has fully grown (neglecting any spatial effects).
 The probability that the growing time is exactly $k$ days is $f(k) = F(k) - F(k-1)$ and from this probability mass function $f$, it is possible to calculate the mean growing time.
 We can use the CDF to calculate the median growing time.
@@ -148,55 +151,7 @@ We can use the CDF to calculate the median growing time.
 ![Growing times](./images/growing_times.png)
 
 All in all, it takes around a month for a tree to grow from a planted seed to full maturity. 
-Note the tree fertilizer shortens this to 4 days exactly.   
-
-Here's the game code from the decompiled code.
-The comments are mine and help highlihgt the important information.
-
-```c
-    // checks if night is in growing season, whether or not a tree is present, and if it's fertilized
-    if (!Game1.GetSeasonForLocation(currentLocation).Equals("winter") || (int)treeType == 6 || (int)treeType == 9 || environment.CanPlantTreesHere(-1, (int)tileLocation.X, (int)tileLocation.Y) || fertilized.Value)
-    {
-        string s = environment.doesTileHaveProperty((int)tileLocation.X, (int)tileLocation.Y, "NoSpawn", "Back");
-        if (s != null && (s.Equals("All") || s.Equals("Tree") || s.Equals("True")))
-        {
-            return;
-        }
-
-        // if growth stage is four, check for neighbors
-        if ((int)growthStage == 4)
-        {
-            // loop through neighborhood
-            foreach (KeyValuePair<Vector2, TerrainFeature> t in environment.terrainFeatures.Pairs)
-            {   
-                // check if neighborhood has at least one tree that's growth stage 5 or greater, then don't grow.
-                if (t.Value is Tree && !t.Value.Equals(this) && (int)((Tree)t.Value).growthStage >= 5 && t.Value.getBoundingBox(t.Key).Intersects(growthRect))
-                {
-                    return;
-                }
-            }
-        }
-        else if ((int)growthStage == 0 && environment.objects.ContainsKey(tileLocation))
-        {
-            return;
-        }
-
-        // roll for growth for mahogany trees (15% chance); increases to 60% if fertilized.
-        if ((int)treeType == 8)
-        {
-            if (Game1.random.NextDouble() < 0.15 || (fertilized.Value && Game1.random.NextDouble() < 0.6))
-            {
-                growthStage.Value++;
-            }
-        }
-        // roll for growth for all other tree type; growth probability is increased to 1 if fertilized
-        else if (Game1.random.NextDouble() < 0.2 || fertilized.Value)
-        {
-            growthStage.Value++;
-        }
-    }
-```
-
+Note the tree fertilizer shortens this to 4 nights exactly.   
 
 ## How do trees reproduce? 
 
@@ -208,29 +163,7 @@ The planted seed has an equal chance of going in any cell that is empty.
 ![reproduction neighborhood](./images/reproduction_neighborhood.png)
 
 
-However, that's the rules as described on the wiki page, but it was not entirely clear to me how certain edges cases work. So I checked out the game code (annotatations are mine)
-
-
-```c
-// check if stage s >= 5  and roll for reproduction with 15% chance
-if ((int)growthStage >= 5 && environment is Farm && Game1.random.NextDouble() < 0.15)
-			{   
-                // randomly select coordinates in 7 x 7 box centered at tree location
-				int xCoord = Game1.random.Next(-3, 4) + (int)tileLocation.X;
-				int yCoord = Game1.random.Next(-3, 4) + (int)tileLocation.Y;
-				Vector2 location = new Vector2(xCoord, yCoord);
-                
-                // check if selected coordinates are a valid loction 
-				string noSpawn = environment.doesTileHaveProperty(xCoord, yCoord, "NoSpawn", "Back");
-				if ((noSpawn == null || (!noSpawn.Equals("Tree") && !noSpawn.Equals("All") && !noSpawn.Equals("True"))) && environment.isTileLocationOpen(new Location(xCoord, yCoord)) && !environment.isTileOccupied(location) && environment.doesTileHaveProperty(xCoord, yCoord, "Water", "Back") == null && environment.isTileOnMap(location))
-				{
-                    // add tree at new location
-					environment.terrainFeatures.Add(location, new Tree(treeType, 0));
-				}
-			}
-```
-
-Notice that the game first rolls to see if a tree reproduces, then generates a random location in the 7x7 neighborhood aroun the tree.
+However, that's the rules as described on the wiki page, but it was not entirely clear to me how certain edges cases work. It seems that the game first rolls to see if a tree reproduces, then generates a random location in the 7x7 neighborhood around the tree.
 If the selected location is empty, a new seed is created there; otherwise nothing happens.
 That means two things: trees don't produce more than one seed per reproduction event, and also the 15% is the probability that the tree reproduces in an empty grid.
 There's 49 spaces, so if only 15 are free, then the chance that this tree adds one new seed is only $\frac{15}{49} \times 0.15 = \frac{9}{196}$ chance.
@@ -238,7 +171,7 @@ This means that the rate of reproduction depends on the local density of availab
 
 The game updates the grid of trees sequential, so it calculates whether a cell changes going from west to east (left to right) then north to south (top to bottom) starting from the north-west (top-left) corner, and ending in the south-east (bottom-right) corner.
 That means the grid's update is not symmetric and has a slight spatial bias.
-If there is one space empty, and two trees close enough to fill it by reproduction; the north-western one has a higher chance to (15%) than the south-eastern one $(1 - 0.15) \times 0.15 = 12.75%$.
+If there is one space empty, and two trees close enough to fill it by reproduction; the north-western one has a higher chance to (15%) than the south-eastern one $(1 - 0.15) \times 0.15 = 12.75\%$.
 But we won't worry about that issue, since all trees are exactly the same. 
 
 
@@ -311,7 +244,7 @@ We can use a nice mathematical trick to do the counting: convolutions.
 Convolution is used extensively in signal and image filtering.
 It is essentially a locally weighted sum or average.
 I won't explain the details of convolution exactly, but we can take advantage of code designed to calculate the convolution fast.
-Here's the definition (inpython-style pseudo-code; Github doesn't support Latex rendering easily):
+Here's the definition (in python-style pseudo-code; GitHub doesn't support Latex rendering easily):
 
 ```python 
 def convolve(f,g): 
@@ -350,7 +283,7 @@ Thus, we can take the overall probability to be $ \beta r_{s=5}(x)/48 $.
 However, this isn't the same rule.
 In the game, the maximum number of offspring per time step is one.
 A single stage-5 tree cannot add more than one offspring per night.
-So imagine a cell with stage 5, surrounded by emtpy cells. Every one of the empty cells has $\beta/48$ of getting an offspring in a single night under our rule, and their probabilities are independent under our rule.
+So imagine a cell with stage 5, surrounded by empty cells. Every one of the empty cells has $\beta/48$ of getting an offspring in a single night under our rule, and their probabilities are independent under our rule.
 The game's rule makes the probability correlated, so the probability of any particular empty cell getting an offspring is correlated.
 Under the game's rule, there's a  $\beta=15\%$ chance that add one new tree is added to the grid, whereas our rule adds anywhere between 0 and 48 offspring, but the average number added per night is still $\beta$, which is the same average as the game's rule.
 The variance is different, but we will address this later.
@@ -397,7 +330,7 @@ def simulate(arr):
 
 Now we just call the `simulate` function to run the simulation.
 This code can be found in `sim_v1.py`.
-The data can then be animated or plotted. Try `animate_v1.py' to make an animation. 
+The data can then be animated or plotted. Try `animate_v1.py` to make an animation. 
 
 ![simulation iterates](./images/sim_v1_grid_iterates.png)
 
@@ -432,7 +365,7 @@ We immediately see several interesting patterns.
 Why do these patterns occur?
 Moreover how do they change if we modify the rules or parameters of the simulation?
 
-The intuition for some of these patterns is pretty simple. When the grid is mostly empty, the population growth is exponential (asymptotically at $N\rightarrow 0$) because it takes about 20 days on average to go from stage 1 to stage 5 and about 7 days to produce an offspring. Thus, the population should grow at a rate of about 1/27 per day. The rate slows down for two reasons. First, the available space runs out and the grid fills up, leading to the static population size (with random fluctuations). However, the slow down begins before that happens because the local space around each tree fills up before the entire grid does. So only trees near the edge of the forest really contribute to the overall population growth. That stages 1-3 have the same number of trees makes sense because they have the same rate to grow, and the same rate to die. The constant ratio corresponds to the blocking effect (stage 5 block stage 4 from growing). But can we be more numerically? 
+The intuition for some of these patterns is pretty simple. When the grid is mostly empty, the population growth is exponential (asymptotically at $N\rightarrow 0$) because it takes about 20 days on average to go from stage 1 to stage 5 and about 7 days to produce an offspring. Thus, the population should grow at a rate of about 1/27 per day. The rate slows down for two reasons. First, the available space runs out and the grid fills up, leading to the static population size (with random fluctuations). However, the slow down begins before that happens because the local space around each tree fills up before the entire grid does. So only trees near the edge of the forest really contribute to the overall population growth. That stages 1-3 have the same number of trees makes sense because they have the same rate to grow, and the same rate to die. The constant ratio corresponds to the blocking effect (stage 5 block stage 4 from growing). But can we be more quantitative? 
 
 
 ## Stochastic Cellular Automata and Markov Chains 
@@ -443,15 +376,15 @@ $$
 P(\sigma_{n+1} | \sigma_n)
 $$
 
-It gives the probability of a transition. In fact, the update rule can be thought of as a list of deterministic transition rules with a probability of selecting one. We can compute the probability of observing a certain sequence of configurations $\xi = \simga_0, \sigma_1, \ldots$:
+It gives the probability of a transition. In fact, the update rule can be thought of as a list of deterministic transition rules with a probability of selecting one. We can compute the probability of observing a certain sequence of configurations $\xi = \sigma_0, \sigma_1, \ldots$:
 
 $$
-P(\xi) = P(\simga_0, \sigma_1, \sigma_2, \sigma_3, \ldots) = P(\sigma_0)P(\sigma_1 |\sigma_0) P(\sigma_2 |\sigma_1) \ldots P(\sigma_{n+1} |\sigma_n)\ldots
+P(\xi) = P(\sigma_0, \sigma_1, \sigma_2, \sigma_3, \ldots) = P(\sigma_0)P(\sigma_1 |\sigma_0) P(\sigma_2 |\sigma_1) \ldots P(\sigma_{n+1} |\sigma_n)\ldots
 $$
 
 By summing over all possible intermediates, we can compute a mixed state $P(\sigma_n)$. This is exactly how stochastic processes are defined. The simulation generates a **draw** from the update rule, and produces a random sequence of configurations. In essence, a stochastic cellular automata is a markov chain, so we could simply analyze them that way. 
 
-However, the markov chain is over a very large configuration space. The obvious thing to do with a markov chain is to compute its transition map as matrix, then factor the matrix. The eigenvectors with eigenvalues of $1$ are the stationary distributions. But we run into a problem. The matrix is very, very large. Each configuration is a function from the finite grid $N^2$ to a finite set of size 6. Thus, there are $6^{N^2}$ possible configurations. A mixed state assigns each configuration a probability so it is a vector in $[0,1]^{6^{N^2}}$ so on a grid of 48 by 64 cells , there are $6^{3072}$ configurations or about $10^{2390}$ configurations ( which is far more than the number of atoms in the universe (apparently)). To write down the transition rule as a matrix, we'd need a 2D array with dimensions $6^{3072}$ by $6^{3072}$. Thus, treating our stochastic cellular automata as a markov chain isn't that useful.
+However, the markov chain is over a very large configuration space. The obvious thing to do with a markov chain is to compute its transition map as matrix, then factor the matrix. The eigenvectors with eigenvalues of $1$ are the stationary distributions. But we run into a problem. The matrix is very, very large. Each configuration is a function from the finite grid $M$ to a finite set of size 6. Thus, there are $6^{M}$ possible configurations. A mixed state assigns each configuration a probability so it is a vector in $[0,1]^{6^{M}}$. On a grid of 48 by 64 cells, $M=3072$, so there are $6^{3072}$ configurations or about $10^{2390}$ configurations ( which is far more than the number of atoms in the universe (apparently)). To write down the transition rule as a matrix, we'd need a 2D array with dimensions $6^{3072}$ by $6^{3072}$. Thus, treating our stochastic cellular automata as a markov chain isn't that useful.
 
 There are a few useful insights. For example, we can determine some things about the stationary distributions. Every configuration has a non-zero probability of transitioning to another if we can find a sequence of transitions that converts a configuration to another. 
 
