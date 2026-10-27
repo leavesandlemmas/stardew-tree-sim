@@ -1,0 +1,15 @@
+[book]
+title = "stardew-tree-sim"
+description = "Tree population dynamics as a stochastic cellular automaton"
+authors = ["Scott Oswald"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+mathjax-support = true
+git-repository-url = "https://github.com/leavesandlemmas/stardew-tree-sim"
+edit-url-template = "https://github.com/leavesandlemmas/stardew-tree-sim/edit/main/docs/{path}"
