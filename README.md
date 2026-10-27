@@ -7,7 +7,7 @@ Methods: stochastic cellular automata · Markov chains · convolution-based neig
 ## Overview of a Stardew Valley Forest
 
 
-![Forest on stardew valley farm](./images/20231018082043_1.jpg)
+![Forest on stardew valley farm](./docs/src/images/20231018082043_1.jpg)
 
 The screenshot above shows an example of the vegetation on a farm in Stardew Valley.
 There are several types of trees, grass, and other vegetation.
@@ -22,21 +22,21 @@ In either case, we have to figure out how to calculate the emergent properties o
 First, let's note that the dynamics occur on a grid.
 You can see a red square that indicates one cell of this grid.
 
-![Close up of forest, showing a red square of one cell](./images/treegrid_latent.jpg)
+![Close up of forest, showing a red square of one cell](./docs/src/images/treegrid_latent.jpg)
 
 If we draw the grid, we see that each individual tree, tuft of grass, bush, and so on occupy a single cell in a grid. 
 
-![Close up of forest, superimposed red grid](./images/treegrid.jpg)
+![Close up of forest, superimposed red grid](./docs/src/images/treegrid.jpg)
 
 If we focus on the trees, we see that there are five stages of living trees. 
 The first four are a **planted seed** (stage 1), a germinate **seedling** (stage 2), a **bush** form (stage 3), and a **sapling** (stage 4).   
 
-![Four stages of a growing tree](./images/tree_stages_1_to_4.jpg)
+![Four stages of a growing tree](./docs/src/images/tree_stages_1_to_4.jpg)
 
 The fifth stage is a mature tree (stage 5).
 Trees can die and leave stumps not shown. 
 
-![A mature tree](./images/tree_mature.jpg)
+![A mature tree](./docs/src/images/tree_mature.jpg)
 
 Because there is a discrete set of stages on a discrete,  we can represent the tree population dynamics using cellular automata.
 
@@ -55,23 +55,23 @@ The trees occupy positions on a lattice and the lattice has a state for each tre
 Note we can simply add more states to represent other tree species or grass, etc.
 Here's an example
 
-![Lattice with colored and numbered cells](./images/cells_with_numbers_colors.png)
+![Lattice with colored and numbered cells](./docs/src/images/cells_with_numbers_colors.png)
 
 While in principle one could define a transition rule that is any function maps configurations to other configurations, in practice it is more interesting to use transition rules which are defined **locally**.
 That means, for a given cell, its change in state during one transition depends only on its current state and the state of nearby cells.
 For example, in the grid below, the next state of the blue cell depends on its current state and the current state of the surrounding gray cells. 
 
 
-![Lattice with colored and numbered cells](./images/neighborhood_moore.png)
+![Lattice with colored and numbered cells](./docs/src/images/neighborhood_moore.png)
 
 If we define a local transition rule for each **neighborhood**, we can apply this rule for every cell and its neighborhood to define a transition rule for an entire grid.
 Note we sometimes have to make special choices for the boundary of the grid, similar to boundary conditions for differential equations.
 We can vary the neighborhood for rules that have a longer distance spatial interaction. 
 
-![von neumann neighborhood](./images/neighborhood_compass.png)
+![von neumann neighborhood](./docs/src/images/neighborhood_compass.png)
 
 
-![two layer moore neighborhood](./images/neighborhood_big_moore.png)
+![two layer moore neighborhood](./docs/src/images/neighborhood_big_moore.png)
 
 
 In many physical systems, we wish represent to how some quantity varies in space and time in a region of space.
@@ -121,7 +121,7 @@ Because growth is random, we have a stochastic cellular automaton, with a stocha
 This makes the growth of an individual tree into a [Markov chain](https://en.wikipedia.org/wiki/Markov_chain). We can represent this diagrammatically as:
 
 
-![markov chain for growth](./images/markov_chain_for_growth.png)
+![markov chain for growth](./docs/src/images/markov_chain_for_growth.png)
 
 
 This also makes the entire grid into a Markov chain.
@@ -134,7 +134,7 @@ Note however that for most pairs of grids, the transition probability is zero.
 For the most part, this transition rule is independent with no spatial interactions at except for the last stage.
 If we ignore this part, we get a transition matrix that looks like this:
 
-![A transition matrix](./images/transition_matrix_growth_stages.PNG)
+![A transition matrix](./docs/src/images/transition_matrix_growth_stages.PNG)
 
 Here each entry of the matrix gives a transition probability  $A_{ij} = \Pr ( j \to i) $.
 If we know the initial state, we can just look at the corresponding column to get the transition probabilities.
@@ -148,7 +148,7 @@ The probability that the growing time is exactly $k$ days is $f(k) = F(k) - F(k-
 We can use the CDF to calculate the median growing time.
 
 
-![Growing times](./images/growing_times.png)
+![Growing times](./docs/src/images/growing_times.png)
 
 All in all, it takes around a month for a tree to grow from a planted seed to full maturity. 
 Note the tree fertilizer shortens this to 4 nights exactly.   
@@ -160,7 +160,7 @@ The rule is similar to the growth rule.
 Every night (transition), each mature tree has a 15% probability of spawning a new planted seed in a 7 by 7 box centered (box of radius 3).
 The planted seed has an equal chance of going in any cell that is empty. 
 
-![reproduction neighborhood](./images/reproduction_neighborhood.png)
+![reproduction neighborhood](./docs/src/images/reproduction_neighborhood.png)
 
 
 However, that's the rules as described on the wiki page, but it was not entirely clear to me how certain edges cases work. It seems that the game first rolls to see if a tree reproduces, then generates a random location in the 7x7 neighborhood around the tree.
