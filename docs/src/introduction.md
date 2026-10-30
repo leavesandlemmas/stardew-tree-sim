@@ -21,8 +21,9 @@ that govern each individual tree.
 
 ## How this book is organized
 
-- **[Trees in Stardew Valley](the-game.md)** looks at the game itself: the grid
-  the farm is built on and the stages a tree grows through.
+- **[Trees in Stardew Valley](the-game.md)** looks how trees spread and propagate 
+  in the game itself. The game is inspiration for the stochastic cellular automata
+  but there are deviations.
 - **[Cellular Automata](math/cellular-automata.md)** and
   **[Neighborhoods and Boundaries](math/neighborhoods.md)** turn those
   observations into a mathematical model.
